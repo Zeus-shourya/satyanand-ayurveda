@@ -1,0 +1,20 @@
+# Cache + security headers for Cloudflare Pages / Netlify (ignored by GitHub Pages).
+# CSS/JS are referenced with ?v=N — bump N in the HTML when you change them.
+
+/*
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: camera=(), microphone=(), geolocation=()
+  X-Frame-Options: SAMEORIGIN
+
+/*.html
+  Cache-Control: public, max-age=0, must-revalidate
+
+/assets/css/*
+  Cache-Control: public, max-age=86400, stale-while-revalidate=604800
+
+/assets/js/*
+  Cache-Control: public, max-age=86400, stale-while-revalidate=604800
+
+/assets/img/*
+  Cache-Control: public, max-age=2592000, stale-while-revalidate=604800
