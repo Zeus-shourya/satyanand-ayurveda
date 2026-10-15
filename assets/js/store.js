@@ -717,6 +717,59 @@
   });
 
   /* ================================================================
+     10b. SEO — head tags for JS-rendered views (shop categories, products)
+     ================================================================ */
+  // Folder the site is served from, e.g. https://zeus-shourya.github.io/satyanand-ayurveda/
+  const siteBase = new URL('./', location.href).href;
+  const absUrl = (path) => new URL(path, siteBase).href;
+
+  function headTag(tag, attr, key) {
+    let el = document.head.querySelector(`${tag}[${attr}="${key}"]`);
+    if (!el) {
+      el = document.createElement(tag);
+      el.setAttribute(attr, key);
+      document.head.appendChild(el);
+    }
+    return el;
+  }
+
+  /** Set title, description, canonical, robots and Open Graph / Twitter tags. Only the given keys change. */
+  function setSeo({ title, description, url, image, imageAlt, robots } = {}) {
+    if (title) {
+      document.title = title;
+      headTag('meta', 'property', 'og:title').setAttribute('content', title);
+      headTag('meta', 'name', 'twitter:title').setAttribute('content', title);
+    }
+    if (description) {
+      headTag('meta', 'name', 'description').setAttribute('content', description);
+      headTag('meta', 'property', 'og:description').setAttribute('content', description);
+      headTag('meta', 'name', 'twitter:description').setAttribute('content', description);
+    }
+    if (url) {
+      headTag('link', 'rel', 'canonical').setAttribute('href', url);
+      headTag('meta', 'property', 'og:url').setAttribute('content', url);
+    }
+    if (image) {
+      headTag('meta', 'property', 'og:image').setAttribute('content', image);
+      headTag('meta', 'name', 'twitter:image').setAttribute('content', image);
+      if (imageAlt) headTag('meta', 'property', 'og:image:alt').setAttribute('content', imageAlt);
+    }
+    if (robots) headTag('meta', 'name', 'robots').setAttribute('content', robots);
+  }
+
+  /** Create or replace one JSON-LD block, identified by its element id. */
+  function setJsonLd(id, data) {
+    let el = document.getElementById(id);
+    if (!el) {
+      el = document.createElement('script');
+      el.type = 'application/ld+json';
+      el.id = id;
+      document.head.appendChild(el);
+    }
+    el.textContent = JSON.stringify(data).replace(/</g, '\\u003c');
+  }
+
+  /* ================================================================
      11. BOOT
      ================================================================ */
   const cartDialog = dialog($('#cart'), {
@@ -768,6 +821,7 @@
     priceHTML, badgeHTML, cardHTML, lineHTML, renderProducts, hydrate,
     Cart, addToCart, evaluateCoupon, toast, waLink, waConfigured,
     initRails, initReveal,
+    absUrl, setSeo, setJsonLd,
     openCart: (trigger) => cartDialog.open(trigger),
     closeCart: () => cartDialog.close(),
     dialog

@@ -1,3 +1,4 @@
 User-agent: *
-Disallow: /checkout.html
 Allow: /
+
+Sitemap: https://zeus-shourya.github.io/satyanand-ayurveda/sitemap.xml

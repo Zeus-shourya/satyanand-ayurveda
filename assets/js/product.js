@@ -19,11 +19,7 @@
       `<h1 class="h2">We couldn’t find that product</h1>` +
       `<p class="lead">It may have been renamed or is no longer available.</p>` +
       `<a class="btn btn--primary btn--lg" href="shop.html">Browse all products</a></div>`;
-    document.title = 'Product not found | Satyanand Ayurveda';
-    const robots = document.createElement('meta');
-    robots.name = 'robots';
-    robots.content = 'noindex';
-    document.head.appendChild(robots);
+    S.setSeo({ title: 'Product not found | Satyanand Ayurveda', robots: 'noindex, follow' });
     return;
   }
 
@@ -182,20 +178,31 @@
   }
   window.matchMedia('(max-width: 1023px)').addEventListener('change', updateBuybar);
 
-  /* ---------- SEO: title, description, breadcrumbs, structured data ---------- */
-  const desc = `${p.tagline}. ${p.description}`.slice(0, 158);
+  /* ---------- SEO: title, description, canonical, breadcrumbs, structured data ---------- */
+  // Trim to `max` characters on a word boundary, for meta descriptions.
+  const clip = (text, max) => {
+    const s = String(text).replace(/\s+/g, ' ').trim();
+    if (s.length <= max) return s;
+    const cut = s.slice(0, max - 1);
+    return cut.slice(0, cut.lastIndexOf(' ')).replace(/[\s,;:.—–-]+$/, '') + '…';
+  };
   const named = p.name.toLowerCase().includes(p.form.toLowerCase()) ? p.name : `${p.name} — ${p.form}`;
-  document.title = `${named} | Satyanand Ayurveda`;
-  const setMeta = (sel, value) => { const m = document.head.querySelector(sel); if (m) m.setAttribute('content', value); };
-  setMeta('meta[name="description"]', desc);
-  setMeta('meta[property="og:title"]', document.title);
-  setMeta('meta[property="og:description"]', desc);
+  const pageUrl = S.absUrl(S.productUrl(p));
+  const photo = p.image ? S.absUrl(p.image) : '';
+  S.setSeo({
+    title: `${named} | Satyanand Ayurveda`,
+    description: clip(`${p.name}: ${p.tagline}. ${p.description}`, 160),
+    url: pageUrl,
+    image: photo,
+    imageAlt: photo ? `${p.name} (${p.form}) by Satyanand Ayurveda` : ''
+  });
   $('[data-crumbs]').insertAdjacentHTML('beforeend',
     `<li><a href="shop.html?cat=${encodeURIComponent(p.category)}">${esc(p.cat.name)}</a></li><li aria-current="page">${esc(p.name)}</li>`);
 
-  const ld = {
-    '@context': 'https://schema.org',
+  const product = {
     '@type': 'Product',
+    '@id': pageUrl + '#product',
+    url: pageUrl,
     name: p.name,
     description: p.description,
     sku: p.id,
@@ -208,14 +215,27 @@
       price: v.price,
       priceCurrency: 'INR',
       availability: 'https://schema.org/' + (S.isInStock(p, v) ? 'InStock' : 'OutOfStock'),
-      url: location.origin + location.pathname + `?id=${encodeURIComponent(p.id)}&v=${encodeURIComponent(v.id)}`
+      itemCondition: 'https://schema.org/NewCondition',
+      url: S.absUrl(`product.html?id=${encodeURIComponent(p.id)}&v=${encodeURIComponent(v.id)}`),
+      seller: { '@type': 'Organization', '@id': S.absUrl('#business'), name: CFG.brand }
     }))
   };
-  if (p.image) ld.image = new URL(p.image, location.href).href;
-  const script = document.createElement('script');
-  script.type = 'application/ld+json';
-  script.textContent = JSON.stringify(ld).replace(/</g, '\\u003c');
-  document.head.appendChild(script);
+  if (photo) product.image = photo;
+  S.setJsonLd('ld-product', {
+    '@context': 'https://schema.org',
+    '@graph': [
+      product,
+      {
+        '@type': 'BreadcrumbList',
+        itemListElement: [
+          { '@type': 'ListItem', position: 1, name: 'Home', item: S.absUrl('./') },
+          { '@type': 'ListItem', position: 2, name: 'Shop', item: S.absUrl('shop.html') },
+          { '@type': 'ListItem', position: 3, name: p.cat.name, item: S.absUrl('shop.html?cat=' + encodeURIComponent(p.category)) },
+          { '@type': 'ListItem', position: 4, name: p.name, item: pageUrl }
+        ]
+      }
+    ]
+  });
 
   /* ---------- related + recently viewed ---------- */
   function railInto(wrapSel, trackSel, list) {

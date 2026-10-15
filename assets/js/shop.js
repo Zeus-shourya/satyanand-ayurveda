@@ -121,18 +121,100 @@
     PRICES.forEach((pr) => setN('price:' + pr.id, byPrice.filter((p) => pr.test(minPrice(p))).length));
   }
 
+  /* ---------- SEO copy for category views ----------
+     Each ?cat= view is indexed as its own page. `title` goes in the browser
+     tab / Google result (brand is appended), `lead` is shown under the H1 and
+     starts the meta description. Keep wording to "traditionally used" /
+     "supports" — no promises to cure or treat. A category not listed here
+     falls back to "Ayurvedic <name>" and its blurb.                        */
+  const CAT_SEO = {
+    'immunity':        { title: 'Ayurvedic Medicine for Immunity',       lead: 'Ayurvedic products traditionally used to support natural immunity through the changing seasons.' },
+    'digestion':       { title: 'Ayurvedic Medicine for Digestion',      lead: 'Ayurvedic formulations traditionally used to kindle agni and support healthy, comfortable digestion.' },
+    'stress-sleep':    { title: 'Ayurvedic Medicine for Stress & Sleep', lead: 'Ayurvedic herbs traditionally used to ease everyday stress and support calm, restful sleep.' },
+    'joint-care':      { title: 'Ayurvedic Joint & Muscle Care',         lead: 'Ayurvedic formulations traditionally used for joint and muscle comfort and easy movement.' },
+    'skin-care':       { title: 'Ayurvedic Herbal Skin Care',            lead: 'Herbal skin care from classical Ayurvedic beauty rituals, with every ingredient listed.' },
+    'hair-care':       { title: 'Ayurvedic Herbal Hair Care',            lead: 'Herbal hair care from the Ayurvedic tradition, made to nourish hair from the roots.' },
+    'womens-wellness': { title: 'Ayurvedic Women’s Wellness',            lead: 'Ayurvedic formulations traditionally used to support women’s wellbeing through every phase.' },
+    'mens-vitality':   { title: 'Ayurvedic Men’s Vitality',              lead: 'Ayurvedic rasayanas traditionally used to support men’s stamina, strength and vitality.' },
+    'liver-detox':     { title: 'Ayurvedic Liver & Detox Care',          lead: 'Ayurvedic formulations traditionally used to support the liver and the body’s natural cleansing.' },
+    'sugar-balance':   { title: 'Ayurvedic Sugar Balance Support',       lead: 'Ayurvedic formulations traditionally used to support healthy metabolism alongside a balanced diet.' },
+    'respiratory':     { title: 'Ayurvedic Respiratory Care',            lead: 'Ayurvedic formulations traditionally used for respiratory comfort through the changing seasons.' },
+    'teas-foods':      { title: 'Ayurvedic Teas & Foods',                lead: 'Herbal teas and traditional foods that bring everyday Ayurveda into your kitchen.' }
+  };
+  const BRAND = ' | Satyanand Ayurveda';
+  const ALL_TITLE = 'Shop Ayurvedic Products Online' + BRAND;
+  const ALL_DESC = 'Browse classical Ayurvedic tablets, churnas, oils, juices and teas for immunity, digestion, sleep, skin and hair. Cash on Delivery across India.';
+
   /* ---------- headings, chips, URL ---------- */
   function renderHeading() {
     const cat = state.cat && S.catById.get(state.cat);
+    const seo = cat && CAT_SEO[cat.id];
     let title = 'All products';
-    let blurb = 'Classical Ayurvedic formulations for everyday wellbeing — honestly made, fairly priced.';
-    if (cat) { title = cat.name; blurb = cat.blurb + '.'; }
-    else if (state.badge) { title = BADGE_TITLES[state.badge]; blurb = 'The formulations our customers come back for.'; }
-    else if (state.q) { title = `Results for “${state.q}”`; blurb = 'Searching names, herbs, ingredients and concerns.'; }
+    let blurb = 'Shop Ayurvedic products online — classical formulations for everyday wellbeing, honestly made and fairly priced.';
+    let pageTitle = ALL_TITLE;
+    let desc = ALL_DESC;
+    if (cat) {
+      title = cat.name;
+      blurb = cat.blurb + '.' + (seo ? ' ' + seo.lead : '');
+      pageTitle = (seo ? seo.title : 'Ayurvedic ' + cat.name) + BRAND;
+      desc = (seo ? seo.lead : `Ayurvedic ${cat.name}: ${cat.blurb}.`) +
+        ` Free shipping above ${money(S.CFG.freeShippingAt)} and Cash on Delivery across India.`;
+    }
+    else if (state.badge) { title = BADGE_TITLES[state.badge]; blurb = 'The formulations our customers come back for.'; pageTitle = title + BRAND; }
+    else if (state.q) { title = `Results for “${state.q}”`; blurb = 'Searching names, herbs, ingredients and concerns.'; pageTitle = title + BRAND; }
     $('[data-shop-title]').textContent = title;
     $('[data-shop-blurb]').textContent = blurb;
     $('[data-crumb]').textContent = title;
-    document.title = `${title} | Satyanand Ayurveda`;
+
+    // Category views canonicalise to ?cat=…; everything else (filters, sort, badges) to shop.html.
+    // Search results are kept out of the index.
+    const url = S.absUrl(cat ? 'shop.html?cat=' + encodeURIComponent(cat.id) : 'shop.html');
+    S.setSeo({
+      title: pageTitle,
+      description: desc,
+      url,
+      robots: state.q ? 'noindex, follow' : 'index, follow, max-image-preview:large'
+    });
+    return { url, name: cat ? cat.name : 'Shop', pageTitle, desc };
+  }
+
+  /** CollectionPage + BreadcrumbList + ItemList for the current view (all matching products, not just the first page). */
+  function renderLd(view) {
+    const { url, name, pageTitle, desc } = view;
+    S.setJsonLd('ld-shop', {
+      '@context': 'https://schema.org',
+      '@graph': [
+        {
+          '@type': 'CollectionPage',
+          '@id': url + '#webpage',
+          url,
+          name: pageTitle,
+          description: desc,
+          inLanguage: 'en-IN',
+          isPartOf: { '@id': S.absUrl('#website') },
+          about: { '@id': S.absUrl('#business') },
+          publisher: { '@id': S.absUrl('#business') },
+          breadcrumb: { '@id': url + '#breadcrumb' },
+          mainEntity: { '@id': url + '#products' }
+        },
+        {
+          '@type': 'BreadcrumbList',
+          '@id': url + '#breadcrumb',
+          itemListElement: [
+            { '@type': 'ListItem', position: 1, name: 'Home', item: S.absUrl('./') },
+            { '@type': 'ListItem', position: 2, name, item: url }
+          ]
+        },
+        {
+          '@type': 'ItemList',
+          '@id': url + '#products',
+          numberOfItems: current.length,
+          itemListElement: current.map((p, i) => ({
+            '@type': 'ListItem', position: i + 1, name: p.name, url: S.absUrl(S.productUrl(p))
+          }))
+        }
+      ]
+    });
   }
 
   function activeFilters() {
@@ -198,8 +280,9 @@
 
   function update() {
     state.shown = PAGE_SIZE;
-    renderHeading();
+    const view = renderHeading();
     renderResults();
+    renderLd(view);
     renderActive();
     updateCounts();
     syncControls();
